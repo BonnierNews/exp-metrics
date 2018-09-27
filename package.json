@@ -1,0 +1,26 @@
+{
+  "name": "exp-metrics",
+  "version": "0.0.1",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "npm test"
+  },
+  "author": "Bonnier News",
+  "contributors": [
+    "Oscar Tholander <oscar@tholander.nu>"
+  ],
+  "license": "MIT",
+  "devDependencies": {
+    "chai": "^4.2.0",
+    "eslint": "^1.10.3",
+    "express": "^4.16.3",
+    "mocha": "^5.2.0",
+    "mocha-cakes-2": "^3.3.0",
+    "supertest": "^3.3.0"
+  },
+  "dependencies": {
+    "on-finished": "^2.3.0",
+    "prom-client": "^11.1.3"
+  }
+}
