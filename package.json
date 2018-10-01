@@ -10,6 +10,10 @@
   "contributors": [
     "Oscar Tholander <oscar@tholander.nu>"
   ],
+  "homepage": "https://github.com/BonnierNews/exp-metrics",
+  "bugs": {
+    "url": "https://github.com/BonnierNews/exp-metrics/issues"
+  },
   "license": "MIT",
   "devDependencies": {
     "chai": "^4.2.0",
