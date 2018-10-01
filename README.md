@@ -1,11 +1,11 @@
 # exp-metrics
 
-Simple bootstrapping of some basic prometheus metrics for your express based application.
+Simple bootstrapping of basic prometheus metrics for your express based application.
 
 The library exposes three things:
 
 1. `responseTimeMiddleware` - an express compliant middleware to record the response times on 0.5, 0.9 and 0.99 percentiles. Also records the status codes for each response.
-2. `metricsEndpoint` - An endpoint you can add on `/metrics` in your express router and allow prometheus to scrape.
+2. `metricsEndpoint` - An endpoint you can add to `/metrics` in your express router and allow prometheus to scrape.
 3. `client` - the underlying prometheus client if you want to add custom metrics to your application.
 
 ## installing
