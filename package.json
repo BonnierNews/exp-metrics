@@ -1,5 +1,5 @@
 {
-  "name": "exp-metrics",
+  "name": "@bonniernews/exp-metrics",
   "version": "0.0.1",
   "description": "",
   "main": "index.js",
