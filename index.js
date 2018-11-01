@@ -15,14 +15,21 @@ const responseCodes = new promClient.Counter({
    labelNames: ["status_code", "method"]
 });
 
-function responseTimeMiddleware(req, res, next) {
-  const start = (new Date()).getTime();
-  onFinished(res, () => {
-    const end = new Date() - start;
-    responseTime.observe(end);
-    responseCodes.inc({"status_code": res.statusCode, method: req.method});
-  });
-  next();
+function initResponseTimeMiddleware() {
+
+  setInterval(() => {
+    responseTime.reset();
+  }, 5000)
+
+  return (req, res, next) => {
+    const start = (new Date()).getTime();
+    onFinished(res, () => {
+      const end = new Date() - start;
+      responseTime.observe(end);
+      responseCodes.inc({"status_code": res.statusCode, method: req.method});
+    });
+    next();
+  }
 }
 
 function metricsEndpoint(req, res) {
