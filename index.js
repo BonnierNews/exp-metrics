@@ -38,7 +38,7 @@ function metricsEndpoint(req, res) {
 }
 
 module.exports = {
-  responseTimeMiddleware,
+  initResponseTimeMiddleware,
   metricsEndpoint,
   client: promClient
 };
