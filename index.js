@@ -17,9 +17,9 @@ const responseCodes = new promClient.Counter({
 
 function initResponseTimeMiddleware() {
 
-  setInterval(() => {
+  /*setInterval(() => {
     responseTime.reset();
-  }, 5000)
+  }, 5000)*/
 
   return (req, res, next) => {
     const start = (new Date()).getTime();
