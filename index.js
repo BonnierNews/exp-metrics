@@ -3,23 +3,20 @@
 const onFinished = require("on-finished");
 const promClient = require("prom-client");
 
-const responseTime = new promClient.Summary({
-  name: "http_response_time_milliseconds",
-  help: "Response times in milliseconds",
-  percentiles: [0.5, 0.9, 0.99]
-});
+function initResponseTimeMiddleware(config) {
 
-const responseCodes = new promClient.Counter({
-   name: "http_responses_total",
-   help: "Number of http responses",
-   labelNames: ["status_code", "method"]
-});
+  const responseTime = new promClient.Summary({
+    name: "http_response_time_milliseconds",
+    help: "Response times in milliseconds",
+    percentiles: [0.5, 0.9, 0.99],
+    ageBuckets: config.ageBuckets || 5
+  });
 
-function initResponseTimeMiddleware() {
-
-  /*setInterval(() => {
-    responseTime.reset();
-  }, 5000)*/
+  const responseCodes = new promClient.Counter({
+     name: "http_responses_total",
+     help: "Number of http responses",
+     labelNames: ["status_code", "method"]
+  });
 
   return (req, res, next) => {
     const start = (new Date()).getTime();
