@@ -26,5 +26,12 @@
   "dependencies": {
     "on-finished": "^2.3.0",
     "prom-client": "^11.2.0"
-  }
+  },
+  "files": [
+    "package.json",
+    "package-lock.json",
+    "README.md",
+    "LICENSE",
+    "index.js"
+  ]
 }
