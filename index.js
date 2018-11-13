@@ -6,7 +6,9 @@ const promClient = require("prom-client");
 const responseTime = new promClient.Summary({
   name: "http_response_time_milliseconds",
   help: "Response times in milliseconds",
-  percentiles: [0.5, 0.9, 0.99]
+  percentiles: [0.5, 0.9, 0.99],
+  maxAgeSeconds: 600,
+  ageBuckets: 5
 });
 
 const responseCodes = new promClient.Counter({
