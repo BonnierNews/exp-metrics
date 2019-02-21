@@ -18,7 +18,7 @@ npm install @bonniernews/exp-metrics
 
 ```js
 const express = require("express");
-const expMetrics = require("exp-metrics");
+const expMetrics = require("@bonniernews/exp-metrics");
 
 const app = express();
 
