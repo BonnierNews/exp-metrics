@@ -1,10 +1,11 @@
 {
   "name": "@bonniernews/exp-metrics",
-  "version": "0.0.2",
-  "description": "",
+  "version": "1.0.0",
+  "description": "Simple bootstrapping of basic prometheus metrics for your express based application.",
   "main": "index.js",
   "scripts": {
-    "test": "mocha test"
+    "test": "mocha test",
+    "posttest": "eslint ."
   },
   "author": "Bonnier News AB",
   "contributors": [
@@ -17,21 +18,17 @@
   "license": "MIT",
   "devDependencies": {
     "chai": "^4.2.0",
-    "eslint": "^1.10.3",
+    "eslint": "^8.1.0",
     "express": "^4.16.4",
-    "mocha": "^5.2.0",
+    "mocha": "^9.1.3",
     "mocha-cakes-2": "^3.3.0",
-    "supertest": "^3.3.0"
+    "supertest": "^6.1.6"
   },
   "dependencies": {
     "on-finished": "^2.3.0",
-    "prom-client": "^11.2.0"
+    "prom-client": "^14.0.1"
   },
   "files": [
-    "package.json",
-    "package-lock.json",
-    "README.md",
-    "LICENSE",
     "index.js"
   ]
 }

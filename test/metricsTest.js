@@ -52,8 +52,8 @@ Feature("Metrics", () => {
   });
 
   And("the two first rows should be infomation texts", () => {
-    expect(rows[0]).to.equal("# HELP http_response_time_milliseconds Response times in milliseconds")
-    expect(rows[1]).to.equal("# TYPE http_response_time_milliseconds summary")
+    expect(rows[0]).to.equal("# HELP http_response_time_milliseconds Response times in milliseconds");
+    expect(rows[1]).to.equal("# TYPE http_response_time_milliseconds summary");
   });
 
   And("we should have recorded the response time in 50th, 90th and 99th percentiles", () => {
@@ -76,7 +76,7 @@ Feature("Metrics", () => {
 
   And("line nine and ten should be information texts", () => {
     expect(rows[8]).to.equal("# HELP http_responses_total Number of http responses");
-    expect(rows[9]).to.equal("# TYPE http_responses_total counter");    
+    expect(rows[9]).to.equal("# TYPE http_responses_total counter");
   });
 
   And("we should have recorded that one 200 response has been sent", () => {
@@ -85,5 +85,5 @@ Feature("Metrics", () => {
 
   And("we should end with a whitespace", () => {
     expect(rows[11]).to.equal("");
-  })
+  });
 });

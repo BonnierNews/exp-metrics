@@ -12,9 +12,9 @@ const responseTime = new promClient.Summary({
 });
 
 const responseCodes = new promClient.Counter({
-   name: "http_responses_total",
-   help: "Number of http responses",
-   labelNames: ["status_code", "method"]
+  name: "http_responses_total",
+  help: "Number of http responses",
+  labelNames: ["status_code", "method"]
 });
 
 function responseTimeMiddleware(req, res, next) {
@@ -27,9 +27,10 @@ function responseTimeMiddleware(req, res, next) {
   next();
 }
 
-function metricsEndpoint(req, res) {
+async function metricsEndpoint(req, res) {
+  const result = await promClient.register.metrics();
   res.set("Content-Type", promClient.register.contentType);
-  res.end(promClient.register.metrics());
+  return res.end(result);
 }
 
 module.exports = {

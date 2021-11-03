@@ -1,5 +1,7 @@
 # exp-metrics
 
+[![Run tests](https://github.com/BonnierNews/exp-metrics/actions/workflows/run-tests.yml/badge.svg?branch=master)](https://github.com/BonnierNews/exp-metrics/actions/workflows/run-tests.yml)
+
 Simple bootstrapping of basic prometheus metrics for your express based application.
 
 The library exposes three things:
