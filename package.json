@@ -5,7 +5,8 @@
   "main": "index.js",
   "scripts": {
     "test": "mocha test",
-    "posttest": "eslint ."
+    "posttest": "eslint .",
+    "lint": "eslint ."
   },
   "author": "Bonnier News AB",
   "contributors": [
@@ -17,8 +18,9 @@
   },
   "license": "MIT",
   "devDependencies": {
+    "@bonniernews/eslint-config": "^1.2.0",
     "chai": "^4.2.0",
-    "eslint": "^8.1.0",
+    "eslint": "^8.57.0",
     "express": "^4.16.4",
     "mocha": "^9.1.3",
     "mocha-cakes-2": "^3.3.0",

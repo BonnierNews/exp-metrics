@@ -6,15 +6,15 @@ const promClient = require("prom-client");
 const responseTime = new promClient.Summary({
   name: "http_response_time_milliseconds",
   help: "Response times in milliseconds",
-  percentiles: [0.5, 0.9, 0.99],
+  percentiles: [ 0.5, 0.9, 0.99 ],
   maxAgeSeconds: 600,
-  ageBuckets: 5
+  ageBuckets: 5,
 });
 
 const responseCodes = new promClient.Counter({
   name: "http_responses_total",
   help: "Number of http responses",
-  labelNames: ["status_code", "method"]
+  labelNames: [ "status_code", "method" ],
 });
 
 function responseTimeMiddleware(req, res, next) {
@@ -22,7 +22,7 @@ function responseTimeMiddleware(req, res, next) {
   onFinished(res, () => {
     const end = new Date() - start;
     responseTime.observe(end);
-    responseCodes.inc({"status_code": res.statusCode, method: req.method});
+    responseCodes.inc({ status_code: res.statusCode, method: req.method });
   });
   next();
 }
@@ -36,5 +36,5 @@ async function metricsEndpoint(req, res) {
 module.exports = {
   responseTimeMiddleware,
   metricsEndpoint,
-  client: promClient
+  client: promClient,
 };
