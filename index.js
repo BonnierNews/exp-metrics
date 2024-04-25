@@ -4,12 +4,22 @@ const { MetricExporter } = require("@google-cloud/opentelemetry-cloud-monitoring
 const { MeterProvider, PeriodicExportingMetricReader } = require("@opentelemetry/sdk-metrics");
 const { Resource } = require("@opentelemetry/resources");
 const { GcpDetectorSync } = require("@google-cloud/opentelemetry-resource-util");
+const gcpMetadata = require("gcp-metadata");
+
+let instanceId;
+
+(() => {
+  gcpMetadata.isAvailable().then(async (gcpMetadataAvailable) => {
+    instanceId = gcpMetadataAvailable ? await gcpMetadata.instance("id") : crypto.randomUUID();
+  });
+})();
 
 module.exports = function expMetrics(applicationName = "exp-metrics", config = {}) {
+  console.log(`XXX: ${instanceId}`); // eslint-disable-line no-console
   const resourceConfig = {
     "service.name": applicationName,
     "service.namespace": `${process.env.NODE_ENV === "production" ? "prod" : process.env.NODE_ENV}`,
-    "service.instance.id": process.env.GOOGLE_CLOUD_PROJECT,
+    "service.instance.id": instanceId,
     ...config,
   };
   const exporter = new MetricExporter();
