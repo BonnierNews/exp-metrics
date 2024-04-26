@@ -16,14 +16,18 @@ const expMetrics = proxyquire("..", {
 
 describe("API", () => {
   let metrics;
+  let randomUUID;
 
   describe("initialization", () => {
     before(() => {
       process.env.GOOGLE_CLOUD_PROJECT = "env-project";
+      randomUUID = crypto.randomUUID;
+      crypto.randomUUID = () => "random-uuid";
     });
 
     after(() => {
       delete process.env.GOOGLE_CLOUD_PROJECT;
+      crypto.randomUUID = randomUUID;
     });
 
     it("no arguments", () => {
@@ -31,7 +35,7 @@ describe("API", () => {
       expect(mockResource.ctorArgs.at(-1)).to.deep.equal({
         "service.name": "exp-metrics",
         "service.namespace": "test",
-        "service.instance.id": "env-project",
+        "service.instance.id": "random-uuid",
       });
     });
 
@@ -40,7 +44,7 @@ describe("API", () => {
       expect(mockResource.ctorArgs.at(-1)).to.deep.equal({
         "service.name": "test-app",
         "service.namespace": "test",
-        "service.instance.id": "env-project",
+        "service.instance.id": "random-uuid",
       });
     });
 
