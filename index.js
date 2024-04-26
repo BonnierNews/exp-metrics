@@ -4,12 +4,13 @@ const { MetricExporter } = require("@google-cloud/opentelemetry-cloud-monitoring
 const { MeterProvider, PeriodicExportingMetricReader } = require("@opentelemetry/sdk-metrics");
 const { Resource } = require("@opentelemetry/resources");
 const { GcpDetectorSync } = require("@google-cloud/opentelemetry-resource-util");
+const crypto = require("crypto");
 
 module.exports = function expMetrics(applicationName = "exp-metrics", config = {}) {
   const resourceConfig = {
     "service.name": applicationName,
     "service.namespace": `${process.env.NODE_ENV === "production" ? "prod" : process.env.NODE_ENV}`,
-    "service.instance.id": process.env.GOOGLE_CLOUD_PROJECT,
+    "service.instance.id": crypto.randomUUID(),
     ...config,
   };
   const exporter = new MetricExporter();
