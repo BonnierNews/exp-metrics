@@ -5,26 +5,15 @@ const { MeterProvider, PeriodicExportingMetricReader } = require("@opentelemetry
 const { Resource } = require("@opentelemetry/resources");
 const { GcpDetectorSync } = require("@google-cloud/opentelemetry-resource-util");
 const crypto = require("crypto");
+const onFinished = require("on-finished");
+
+let meter;
+let reader;
+let responseCodes;
+let responseTime;
 
 module.exports = function expMetrics(applicationName = "exp-metrics", config = {}) {
-  const resourceConfig = {
-    "service.name": applicationName,
-    "service.namespace": `${process.env.NODE_ENV === "production" ? "prod" : process.env.NODE_ENV}`,
-    "service.instance.id": crypto.randomUUID(),
-    ...config,
-  };
-  const exporter = new MetricExporter();
-  const reader = new PeriodicExportingMetricReader({
-    exporter,
-    exportIntervalMillis: 60_000,
-  });
-  const meterProvider = new MeterProvider({
-    readers: [ reader ],
-    resource: new Resource(resourceConfig).merge(new GcpDetectorSync().detect()),
-  });
-  const meter = meterProvider.getMeter("exp-metrics");
-
-  return {
+  const metrics = {
     counter(metricConfig) {
       const metric = meter.createCounter(...getOtConfig(metricConfig));
       return {
@@ -77,7 +66,48 @@ module.exports = function expMetrics(applicationName = "exp-metrics", config = {
     async forceFlush() {
       await reader.forceFlush();
     },
+    responseTimeMiddleware(req, res, next) {
+      const start = Date.now();
+      onFinished(res, () => {
+        const end = Date.now() - start;
+        responseTime.observe(end);
+        responseCodes.inc({ status_code: res.statusCode, method: req.method });
+      });
+      next();
+    },
   };
+
+  if (!meter) {
+    const resourceConfig = {
+      "service.name": applicationName,
+      "service.namespace": `${process.env.NODE_ENV === "production" ? "prod" : process.env.NODE_ENV}`,
+      "service.instance.id": crypto.randomUUID(),
+      ...config,
+    };
+    const exporter = new MetricExporter();
+    reader = new PeriodicExportingMetricReader({
+      exporter,
+      exportIntervalMillis: 60_000,
+    });
+    const meterProvider = new MeterProvider({
+      readers: [ reader ],
+      resource: new Resource(resourceConfig).merge(new GcpDetectorSync().detect()),
+    });
+    meter = meterProvider.getMeter("exp-metrics");
+
+    responseTime = metrics.summary({
+      name: "http_response_time_milliseconds",
+      help: "Response times in milliseconds",
+    });
+
+    responseCodes = metrics.counter({
+      name: "http_responses_total",
+      help: "Number of HTTP responses",
+      labelNames: [ "status_code", "method" ],
+    });
+  }
+
+  return metrics;
 };
 
 function getOtConfig(metricConfig) {

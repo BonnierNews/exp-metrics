@@ -7,17 +7,20 @@ const { expect } = require("chai");
 const mockMeterProvider = require("./helpers/mockMeterProvider.js");
 const mockResource = require("./helpers/mockResource.js");
 
-const expMetrics = proxyquire("..", {
-  "@opentelemetry/sdk-metrics": {
-    MeterProvider: mockMeterProvider,
-    PeriodicExportingMetricReader: function () {},
-  },
-  "@opentelemetry/resources": mockResource,
-});
-
 describe("API", () => {
+  let expMetrics;
   let metrics;
   let randomUUID;
+
+  beforeEach(() => {
+    expMetrics = proxyquire("..", {
+      "@opentelemetry/sdk-metrics": {
+        MeterProvider: mockMeterProvider,
+        PeriodicExportingMetricReader: function () {},
+      },
+      "@opentelemetry/resources": mockResource,
+    });
+  });
 
   describe("initialization", () => {
     before(() => {
