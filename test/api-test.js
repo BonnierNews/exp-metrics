@@ -3,6 +3,7 @@
 const crypto = require("crypto");
 const proxyquire = require("proxyquire").noCallThru().noPreserveCache();
 const { expect } = require("chai");
+const sdkMetrics = require("@opentelemetry/sdk-metrics");
 
 const mockMeterProvider = require("./helpers/mockMeterProvider.js");
 const mockResource = require("./helpers/mockResource.js");
@@ -15,8 +16,8 @@ describe("API", () => {
   beforeEach(() => {
     expMetrics = proxyquire("..", {
       "@opentelemetry/sdk-metrics": {
+        ...sdkMetrics,
         MeterProvider: mockMeterProvider,
-        PeriodicExportingMetricReader: function () {},
       },
       "@opentelemetry/resources": mockResource,
     });

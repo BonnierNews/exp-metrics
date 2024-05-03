@@ -5,6 +5,7 @@ const request = require("supertest");
 const express = require("express");
 const nock = require("nock");
 const { expect } = require("chai");
+const sdkMetrics = require("@opentelemetry/sdk-metrics");
 
 const mockResource = require("./helpers/mockResource.js");
 const createHistogramSpy = spy({ record: spy() });
@@ -12,6 +13,7 @@ const createCounterSpy = spy({ add: spy() });
 
 const expMetrics = proxyquire("..", {
   "@opentelemetry/sdk-metrics": {
+    ...sdkMetrics,
     MeterProvider: function MeterProvider() {
       return {
         getMeter() {
@@ -22,7 +24,6 @@ const expMetrics = proxyquire("..", {
         },
       };
     },
-    PeriodicExportingMetricReader: function () {},
   },
   "@opentelemetry/resources": mockResource,
 });
