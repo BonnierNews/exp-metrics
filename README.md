@@ -32,10 +32,8 @@ npm install @bonniernews/exp-metrics
 ```javascript
 const expMetrics = require("@bonniernews/exp-metrics");
 
-metrics = expMetrics({
-  "service.name": "my-service-name",
-  "service.namespace": "my-namespace",
-  "service.instance.id": "my-instance-id",
+metrics = expMetrics("my-service-name", {
+  // optional overrides, see more below
 });
 
 const myCounter = metrics.counter({
@@ -49,3 +47,5 @@ myCounter.inc({ foo: "bar" }, 3);
 ```
 
 See more in the [prom-client](https://github.com/siimon/prom-client?tab=readme-ov-file#custom-metrics) documentation.
+
+For overriding the default OpenTelemetry configuration, see the [OpenTelemetry documentation](https://www.npmjs.com/package/@opentelemetry/resources)
