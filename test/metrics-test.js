@@ -202,19 +202,17 @@ describe("metrics", () => {
                   count: "2",
                   mean: 15,
                   bucketOptions: {
-                    explicitBuckets: {
-                      bounds: [
-                        0.5,
-                        0.95,
-                        0.99,
-                      ],
+                    exponentialBuckets: {
+                      growthFactor: 1.0054299011128027,
+                      scale: 9.988807817513237,
+                      numFiniteBuckets: 129,
                     },
                   },
                   bucketCounts: [
                     "0",
+                    "1",
                     "0",
                     "0",
-                    "2",
                   ],
                 },
               },

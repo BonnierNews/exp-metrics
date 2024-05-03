@@ -1,29 +1,38 @@
 "use strict";
 
+const crypto = require("crypto");
 const proxyquire = require("proxyquire").noCallThru().noPreserveCache();
 const { expect } = require("chai");
+const sdkMetrics = require("@opentelemetry/sdk-metrics");
 
 const mockMeterProvider = require("./helpers/mockMeterProvider.js");
 const mockResource = require("./helpers/mockResource.js");
 
-const expMetrics = proxyquire("..", {
-  "@opentelemetry/sdk-metrics": {
-    MeterProvider: mockMeterProvider,
-    PeriodicExportingMetricReader: function () {},
-  },
-  "@opentelemetry/resources": mockResource,
-});
-
 describe("API", () => {
+  let expMetrics;
   let metrics;
+  let randomUUID;
+
+  beforeEach(() => {
+    expMetrics = proxyquire("..", {
+      "@opentelemetry/sdk-metrics": {
+        ...sdkMetrics,
+        MeterProvider: mockMeterProvider,
+      },
+      "@opentelemetry/resources": mockResource,
+    });
+  });
 
   describe("initialization", () => {
     before(() => {
       process.env.GOOGLE_CLOUD_PROJECT = "env-project";
+      randomUUID = crypto.randomUUID;
+      crypto.randomUUID = () => "random-uuid";
     });
 
     after(() => {
       delete process.env.GOOGLE_CLOUD_PROJECT;
+      crypto.randomUUID = randomUUID;
     });
 
     it("no arguments", () => {
@@ -31,7 +40,7 @@ describe("API", () => {
       expect(mockResource.ctorArgs.at(-1)).to.deep.equal({
         "service.name": "exp-metrics",
         "service.namespace": "test",
-        "service.instance.id": "env-project",
+        "service.instance.id": "random-uuid",
       });
     });
 
@@ -40,7 +49,7 @@ describe("API", () => {
       expect(mockResource.ctorArgs.at(-1)).to.deep.equal({
         "service.name": "test-app",
         "service.namespace": "test",
-        "service.instance.id": "env-project",
+        "service.instance.id": "random-uuid",
       });
     });
 
