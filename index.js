@@ -78,20 +78,25 @@ module.exports = function expMetrics(applicationName = "exp-metrics", config = {
   };
 
   if (!meter) {
+    const namespace = `${applicationName}-${process.env.NODE_ENV === "production" ? "prod" : process.env.NODE_ENV}`;
     const resourceConfig = {
       "service.name": applicationName,
-      "service.namespace": `${process.env.NODE_ENV === "production" ? "prod" : process.env.NODE_ENV}`,
+      "service.namespace": namespace,
       "service.instance.id": crypto.randomUUID(),
       ...config,
     };
     const exporter = new MetricExporter();
     reader = new PeriodicExportingMetricReader({
       exporter,
-      exportIntervalMillis: 60_000,
+      exportIntervalMillis: 120_000,
+    });
+    const resource = new Resource(resourceConfig).merge(new GcpDetectorSync().detect());
+    resource.waitForAsyncAttributes().then(() => {
+      process.stdout.write(`XXX 2 Resource: ${JSON.stringify(resource.attributes)}\n`);
     });
     const meterProvider = new MeterProvider({
       readers: [ reader ],
-      resource: new Resource(resourceConfig).merge(new GcpDetectorSync().detect()),
+      resource,
       views: [ new View({
         instrumentType: InstrumentType.HISTOGRAM,
         aggregation: new ExponentialHistogramAggregation(),
