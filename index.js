@@ -1,7 +1,7 @@
 "use strict";
 
 const { MetricExporter } = require("@google-cloud/opentelemetry-cloud-monitoring-exporter");
-const { MeterProvider, PeriodicExportingMetricReader, InstrumentType, ExponentialHistogramAggregation, View } = require("@opentelemetry/sdk-metrics");
+const { MeterProvider, PeriodicExportingMetricReader, InstrumentType, View, Aggregation } = require("@opentelemetry/sdk-metrics");
 const { Resource } = require("@opentelemetry/resources");
 const { GcpDetectorSync } = require("@google-cloud/opentelemetry-resource-util");
 const crypto = require("crypto");
@@ -94,7 +94,7 @@ module.exports = function expMetrics(applicationName = "exp-metrics", config = {
       resource: new Resource(resourceConfig).merge(new GcpDetectorSync().detect()),
       views: [ new View({
         instrumentType: InstrumentType.HISTOGRAM,
-        aggregation: new ExponentialHistogramAggregation(),
+        aggregation: Aggregation.ExponentialHistogram(), // eslint-disable-line new-cap
       }) ],
     });
     meter = meterProvider.getMeter("exp-metrics");
