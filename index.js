@@ -1,6 +1,5 @@
 "use strict";
 
-const { DiagConsoleLogger, DiagLogLevel, diag } = require("@opentelemetry/api");
 const { MetricExporter } = require("@google-cloud/opentelemetry-cloud-monitoring-exporter");
 const { MeterProvider, PeriodicExportingMetricReader, InstrumentType, ExponentialHistogramAggregation, View } = require("@opentelemetry/sdk-metrics");
 const { Resource } = require("@opentelemetry/resources");
@@ -14,7 +13,6 @@ let responseCodes;
 let responseTime;
 
 module.exports = function expMetrics(applicationName = "exp-metrics", config = {}) {
-  diag.setLogger(new DiagConsoleLogger(), DiagLogLevel.DEBUG);
   const metrics = {
     counter(metricConfig) {
       const metric = meter.createCounter(...getOtConfig(metricConfig));
@@ -58,11 +56,10 @@ module.exports = function expMetrics(applicationName = "exp-metrics", config = {
       return {
         metric,
         observe(...args) {
-          console.log("monitoring args:", args);
           if (args.length > 1) {
-            return metric.record(args[1], args[0]);
+            return metric.record(args[1] || 1, args[0]);
           }
-          return metric.record(args[0]);
+          return metric.record(args[0] || 1);
         },
       };
     },
