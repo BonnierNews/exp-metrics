@@ -56,6 +56,7 @@ module.exports = function expMetrics(applicationName = "exp-metrics", config = {
       return {
         metric,
         observe(...args) {
+          console.log("monitoring args ", args[1]);
           if (args.length > 1) {
             return metric.record(args[1] || 1, args[0]);
           }
