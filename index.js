@@ -1,6 +1,6 @@
 "use strict";
 
-const { DiagConsoleLogger, DiagLogLevel, diag } = require('@opentelemetry/api');
+const { DiagConsoleLogger, DiagLogLevel, diag } = require("@opentelemetry/api");
 const { MetricExporter } = require("@google-cloud/opentelemetry-cloud-monitoring-exporter");
 const { MeterProvider, PeriodicExportingMetricReader, InstrumentType, ExponentialHistogramAggregation, View } = require("@opentelemetry/sdk-metrics");
 const { Resource } = require("@opentelemetry/resources");
