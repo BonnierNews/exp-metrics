@@ -109,6 +109,10 @@ module.exports = function expMetrics(applicationName = "exp-metrics", config = {
       help: "Number of HTTP responses",
       labelNames: [ "status_code", "method" ],
     });
+
+    new Promise((resolve) => { // eslint-disable-line no-new
+      setTimeout(resolve, 61_000);
+    });
   }
 
   return metrics;
