@@ -56,10 +56,11 @@ module.exports = function expMetrics(applicationName = "exp-metrics", config = {
       return {
         metric,
         observe(...args) {
-          if (args[0].step && args[0].step === "attachCurrentContent") {
-            console.log(...getOtConfig(metricConfig));
-          }
           if (args.length > 1) {
+            console.log(args[0]);
+            if (args[0].step && args[0].step === "attachCurrentContent") {
+              console.log(...getOtConfig(metricConfig));
+            }
             return metric.record(args[1] || 1, args[0]);
           }
           return metric.record(args[0] || 1);
@@ -113,6 +114,10 @@ module.exports = function expMetrics(applicationName = "exp-metrics", config = {
       labelNames: [ "status_code", "method" ],
     });
   }
+
+  new Promise((resolve) => { // eslint-disable-line no-new
+    setTimeout(resolve, 61_000);
+  });
 
   return metrics;
 };
