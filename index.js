@@ -56,6 +56,9 @@ module.exports = function expMetrics(applicationName = "exp-metrics", config = {
       return {
         metric,
         observe(...args) {
+          if (args[0].step && args[0].step === "attachCurrentContent") {
+            console.log(...getOtConfig(metricConfig));
+          }
           if (args.length > 1) {
             return metric.record(args[1] || 1, args[0]);
           }
@@ -108,10 +111,6 @@ module.exports = function expMetrics(applicationName = "exp-metrics", config = {
       name: "http_responses_total",
       help: "Number of HTTP responses",
       labelNames: [ "status_code", "method" ],
-    });
-
-    new Promise((resolve) => { // eslint-disable-line no-new
-      setTimeout(resolve, 61_000);
     });
   }
 
