@@ -90,7 +90,7 @@ module.exports = function expMetrics(applicationName = "exp-metrics", config = {
       exportIntervalMillis: 60_000,
     });
     const gcpResource = new GcpDetectorSync().detect();
-    console.log("GCP resource config", gcpResource);
+    console.log("GCP resource config", JSON.stringify(gcpResource, null, 2));
     const meterProvider = new MeterProvider({
       readers: [ reader ],
       resource: new Resource(resourceConfig).merge(gcpResource),
