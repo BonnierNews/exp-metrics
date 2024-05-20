@@ -89,9 +89,11 @@ module.exports = function expMetrics(applicationName = "exp-metrics", config = {
       exporter,
       exportIntervalMillis: 60_000,
     });
+    const gcpResource = new GcpDetectorSync().detect();
+    console.log("GCP resource config", gcpResource);
     const meterProvider = new MeterProvider({
       readers: [ reader ],
-      resource: new Resource(resourceConfig).merge(new GcpDetectorSync().detect()),
+      resource: new Resource(resourceConfig).merge(gcpResource),
       views: [ new View({
         instrumentType: InstrumentType.HISTOGRAM,
         aggregation: Aggregation.ExponentialHistogram(), // eslint-disable-line new-cap
