@@ -57,9 +57,9 @@ module.exports = function expMetrics(applicationName = "exp-metrics", config = {
         metric,
         observe(...args) {
           if (args.length > 1) {
-            return metric.record(args[1], args[0]);
+            return metric.record(args[1] || 1, args[0]);
           }
-          return metric.record(args[0]);
+          return metric.record(args[0] || 1);
         },
       };
     },

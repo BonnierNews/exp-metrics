@@ -198,7 +198,7 @@ describe("API", () => {
       summary.observe({ foo: "bar" }, 2);
 
       expect(records).to.deep.equal([
-        [ undefined ],
+        [ 1 ],
         [ 1 ],
         [ 2, { foo: "bar" } ],
       ]);
