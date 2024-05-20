@@ -28,11 +28,11 @@
     "supertest": "^6.1.6"
   },
   "dependencies": {
-    "@google-cloud/opentelemetry-cloud-monitoring-exporter": "^0.17.0",
-    "@google-cloud/opentelemetry-resource-util": "^2.1.0",
+    "@google-cloud/opentelemetry-cloud-monitoring-exporter": "^0.18.0",
+    "@google-cloud/opentelemetry-resource-util": "^2.2.0",
     "@opentelemetry/api": "^1.8.0",
-    "@opentelemetry/resources": "^1.22.0",
-    "@opentelemetry/sdk-metrics": "^1.22.0",
+    "@opentelemetry/resources": "^1.24.1",
+    "@opentelemetry/sdk-metrics": "^1.24.1",
     "on-finished": "^2.3.0",
     "proxyquire": "^2.1.3"
   },
