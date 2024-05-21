@@ -94,7 +94,7 @@ module.exports = function expMetrics(applicationName = "exp-metrics", config = {
 
     const meterProvider = new MeterProvider({
       readers: [ reader ],
-      resource: new Resource({ resourceConfig }).merge(
+      resource: new Resource(resourceConfig).merge(
         detectResourcesSync({ detectors: [ containerDetector, gcpDetector, new GcpDetectorSync() ] })
       ),
       views: [ new View({

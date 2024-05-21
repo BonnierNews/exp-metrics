@@ -7,5 +7,8 @@ module.exports = {
     ctorArgs.push(...args);
     return { merge: function () { } };
   },
+  detectResourcesSync: function () {
+    return { merge: function () { } };
+  },
   ctorArgs,
 };

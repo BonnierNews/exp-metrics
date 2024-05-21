@@ -19,6 +19,7 @@ describe("API", () => {
         ...sdkMetrics,
         MeterProvider: mockMeterProvider,
       },
+      "@opentelemetry/resource-detector-gcp": mockResource,
       "@opentelemetry/resources": mockResource,
     });
   });
