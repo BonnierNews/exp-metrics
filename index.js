@@ -2,8 +2,9 @@
 
 const { MetricExporter } = require("@google-cloud/opentelemetry-cloud-monitoring-exporter");
 const { MeterProvider, PeriodicExportingMetricReader, InstrumentType, View, Aggregation } = require("@opentelemetry/sdk-metrics");
-const { Resource } = require("@opentelemetry/resources");
-const { GcpDetectorSync } = require("@google-cloud/opentelemetry-resource-util");
+const { Resource, detectResourcesSync } = require("@opentelemetry/resources");
+const { gcpDetector } = require("@opentelemetry/resource-detector-gcp");
+// const { GcpDetectorSync } = require("@google-cloud/opentelemetry-resource-util");
 const crypto = require("crypto");
 const onFinished = require("on-finished");
 
@@ -89,7 +90,9 @@ module.exports = function expMetrics(applicationName = "exp-metrics", config = {
       exporter,
       exportIntervalMillis: 60_000,
     });
-    const gcpResource = new GcpDetectorSync().detect();
+
+    const gcpResource = detectResourcesSync({ detectors: [ gcpDetector ] });
+
     console.log("GCP resource config", JSON.stringify(gcpResource, null, 2));
     const meterProvider = new MeterProvider({
       readers: [ reader ],
