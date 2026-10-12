@@ -49,3 +49,16 @@ myCounter.inc({ foo: "bar" }, 3);
 See more in the [prom-client](https://github.com/siimon/prom-client?tab=readme-ov-file#custom-metrics) documentation.
 
 For overriding the default OpenTelemetry configuration, see the [OpenTelemetry documentation](https://www.npmjs.com/package/@opentelemetry/resources)
+
+## Google Cloud
+
+Metrics are exported every 60 seconds over OTLP to the [Google Cloud Telemetry API](https://docs.cloud.google.com/stackdriver/docs/reference/telemetry/overview),
+authenticated with Application Default Credentials. The project is resolved from the credentials (or `GOOGLE_CLOUD_PROJECT`),
+and can be overridden with `"gcp.project_id"` in the config.
+
+Requirements:
+- The Telemetry API is enabled: `gcloud services enable telemetry.googleapis.com`
+- The service account has the `roles/telemetry.writer` role
+
+Metrics show up in Cloud Monitoring as `prometheus.googleapis.com/<name>/<counter|gauge|histogram>` on the `prometheus_target` resource,
+e.g. `prometheus.googleapis.com/http_responses_total/counter`.
