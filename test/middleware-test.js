@@ -3,7 +3,7 @@
 const proxyquire = require("proxyquire").noCallThru().noPreserveCache();
 const request = require("supertest");
 const express = require("express");
-const nock = require("nock");
+const { default: nock } = require("nock");
 const { expect } = require("chai");
 const sdkMetrics = require("@opentelemetry/sdk-metrics");
 
@@ -33,7 +33,7 @@ Feature("middleware", () => {
   let originalDateNow;
 
   before(() => {
-    nock.enableNetConnect();
+    nock.enableNetConnect(/(localhost|127\.0\.0\.1):\d+/);
     originalDateNow = Date.now;
     const timeStamps = [ 100, 142, 200, 237 ];
     Date.now = () => timeStamps.shift() || originalDateNow();
