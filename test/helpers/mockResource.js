@@ -3,11 +3,11 @@
 const ctorArgs = [];
 
 module.exports = {
-  Resource: function (...args) {
+  resourceFromAttributes: function (...args) {
     ctorArgs.push(...args);
     return { merge: function () { } };
   },
-  detectResourcesSync: function () {
+  detectResources: function () {
     return { merge: function () { } };
   },
   ctorArgs,

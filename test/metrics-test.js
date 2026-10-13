@@ -1,41 +1,56 @@
 "use strict";
 
 const { expect } = require("chai");
-const expMetrics = require("..");
+const proxyquire = require("proxyquire").noCallThru().noPreserveCache();
 const nock = require("nock");
-const removeNock = require("./helpers/removeNock.js");
-const testRequestBody = require("./helpers/testRequestBody.js");
+const { InMemoryMetricExporter, AggregationTemporality, DataPointType } = require("@opentelemetry/sdk-metrics");
 
 const { DiagLogLevel, diag } = require("@opentelemetry/api");
 const fileLogger = require("./helpers/file-logger.js");
 diag.setLogger(fileLogger, DiagLogLevel.DEBUG);
 
-const requests = [];
-const requestPromises = [];
-const metricsEndpoint = nock("https://monitoring.googleapis.com");
-
 describe("metrics", () => {
+  const exporter = new InMemoryMetricExporter(AggregationTemporality.CUMULATIVE);
   let metrics;
 
   before(() => {
     process.env.gcloud_project = "test-project";
-    process.env.GOOGLE_APPLICATION_CREDENTIALS = "test/test-credentials";
+    process.env.METADATA_SERVER_DETECTION = "none";
 
-    nock.disableNetConnect();
-    nock("https://www.googleapis.com/oauth2")
-      .persist()
-      .post("/v4/token")
-      .reply(200, {});
-
+    const expMetrics = proxyquire("..", {
+      "@opentelemetry/exporter-metrics-otlp-proto": {
+        OTLPMetricExporter: function OTLPMetricExporter() {
+          return exporter;
+        },
+      },
+    });
     metrics = expMetrics("test-name", {
       "service.namespace": "test-namespace",
       "service.instance.id": "test-instance-id",
     });
   });
 
+  after(() => {
+    delete process.env.gcloud_project;
+    delete process.env.METADATA_SERVER_DETECTION;
+  });
+
   afterEach(() => {
-    removeNock(metricsEndpoint);
-    requests.length = 0;
+    exporter.reset();
+  });
+
+  it("resource", async () => {
+    metrics.counter({ name: "resource_counter" }).inc();
+
+    await metrics.forceFlush();
+
+    const { resource } = exporter.getMetrics().at(-1);
+    expect(resource.attributes).to.include({
+      "gcp.project_id": "test-project",
+      "service.name": "test-name",
+      "service.namespace": "test-namespace",
+      "service.instance.id": "test-instance-id",
+    });
   });
 
   it("counter", async () => {
@@ -44,108 +59,25 @@ describe("metrics", () => {
       help: "My counter",
     });
 
-    expectedMetricDescriptorsRequest({
-      type: "workload.googleapis.com/my_counter",
-      description: "My counter",
-      displayName: "my_counter",
-      metricKind: "CUMULATIVE",
-      valueType: "DOUBLE",
-      unit: "",
-      labels: [],
-    });
-
-    expectedTimeSeriesRequest("my_counter", {
-      timeSeries: [
-        {
-          metric: {
-            type: "workload.googleapis.com/my_counter",
-            labels: {},
-          },
-          resource: {
-            type: "generic_task",
-            labels: {
-              location: "global",
-              namespace: "test-namespace",
-              job: "test-name",
-              task_id: "test-instance-id",
-            },
-          },
-          metricKind: "CUMULATIVE",
-          valueType: "DOUBLE",
-          points: [
-            { value: { doubleValue: 1 } },
-          ],
-        },
-        {
-          metric: {
-            type: "workload.googleapis.com/my_counter",
-            labels: { foo: "bar" },
-          },
-          resource: {
-            type: "generic_task",
-            labels: {
-              location: "global",
-              namespace: "test-namespace",
-              job: "test-name",
-              task_id: "test-instance-id",
-            },
-          },
-          metricKind: "CUMULATIVE",
-          valueType: "DOUBLE",
-          points: [
-            { value: { doubleValue: 2 } },
-          ],
-        },
-      ],
-    });
-
     counter.inc();
     counter.inc({ foo: "bar" }, 2);
 
     await metrics.forceFlush();
 
-    await expectRequests();
+    const metric = getMetric("my_counter");
+    expect(metric.descriptor).to.include({ description: "My counter" });
+    expect(metric.dataPointType).to.equal(DataPointType.SUM);
+    expect(metric.isMonotonic).to.equal(true);
+    expect(getPoints(metric)).to.deep.equal([
+      { attributes: {}, value: 1 },
+      { attributes: { foo: "bar" }, value: 2 },
+    ]);
   });
 
   it("gauge", async () => {
     const gauge = metrics.gauge({
       name: "my_gauge",
       help: "My gauge",
-    });
-
-    expectedMetricDescriptorsRequest({
-      type: "workload.googleapis.com/my_gauge",
-      description: "My gauge",
-      displayName: "my_gauge",
-      metricKind: "GAUGE",
-      valueType: "DOUBLE",
-      unit: "",
-      labels: [],
-    });
-
-    expectedTimeSeriesRequest("my_gauge", {
-      timeSeries: [
-        {
-          metric: {
-            type: "workload.googleapis.com/my_gauge",
-            labels: {},
-          },
-          resource: {
-            type: "generic_task",
-            labels: {
-              location: "global",
-              namespace: "test-namespace",
-              job: "test-name",
-              task_id: "test-instance-id",
-            },
-          },
-          metricKind: "GAUGE",
-          valueType: "DOUBLE",
-          points: [
-            { value: { doubleValue: 16 } },
-          ],
-        },
-      ],
     });
 
     gauge.set({ foo: "bar" }, 5);
@@ -156,7 +88,12 @@ describe("metrics", () => {
 
     await metrics.forceFlush();
 
-    await expectRequests();
+    const metric = getMetric("my_gauge");
+    expect(metric.descriptor).to.include({ description: "My gauge" });
+    expect(metric.dataPointType).to.equal(DataPointType.GAUGE);
+    expect(getPoints(metric)).to.deep.equal([
+      { attributes: {}, value: 16 },
+    ]);
   });
 
   it("summary", async () => {
@@ -164,75 +101,6 @@ describe("metrics", () => {
       name: "my_summary",
       help: "My summary",
       percentiles: [ 0.5, 0.95, 0.99 ],
-    });
-
-    expectedMetricDescriptorsRequest({
-      type: "workload.googleapis.com/my_summary",
-      description: "My summary",
-      displayName: "my_summary",
-      metricKind: "CUMULATIVE",
-      valueType: "DISTRIBUTION",
-      unit: "",
-      labels: [],
-    });
-
-    expectedTimeSeriesRequest("my_summary", {
-      timeSeries: [
-        {
-          metric: {
-            type: "workload.googleapis.com/my_summary",
-            labels: { foo: "bar" },
-          },
-
-          resource: {
-            type: "generic_task",
-            labels: {
-              location: "global",
-              namespace: "test-namespace",
-              job: "test-name",
-              task_id: "test-instance-id",
-            },
-          },
-          metricKind: "CUMULATIVE",
-          valueType: "DISTRIBUTION",
-          points: [
-            {
-              value: {
-                distributionValue: {
-                  count: "2",
-                  mean: 15,
-                  bucketOptions: {
-                    exponentialBuckets: {
-                      growthFactor: 1.0054299011128027,
-                      scale: 9.988807817513237,
-                      numFiniteBuckets: 129,
-                    },
-                  },
-                  bucketCounts: [
-                    "0",
-                    "1",
-                    "0",
-                    "0",
-                  ],
-                },
-              },
-            },
-          ],
-        },
-        {
-          metric: { type: "workload.googleapis.com/my_summary" },
-          points: [
-            {
-              value: {
-                distributionValue: {
-                  count: "5",
-                  mean: 20,
-                },
-              },
-            },
-          ],
-        },
-      ],
     });
 
     summary.observe({ foo: "bar" }, 10);
@@ -245,54 +113,84 @@ describe("metrics", () => {
 
     await metrics.forceFlush();
 
-    await expectRequests();
+    const metric = getMetric("my_summary");
+    expect(metric.descriptor).to.include({ description: "My summary" });
+    expect(metric.dataPointType).to.equal(DataPointType.EXPONENTIAL_HISTOGRAM);
+    expect(metric.dataPoints.map(({ attributes, value: { count, sum, min, max } }) => ({ attributes, count, sum, min, max }))).to.deep.equal([
+      { attributes: { foo: "bar" }, count: 2, sum: 30, min: 10, max: 20 },
+      { attributes: {}, count: 5, sum: 100, min: 10, max: 40 },
+    ]);
+  });
+
+  function getMetric(name) {
+    const { scopeMetrics } = exporter.getMetrics().at(-1);
+    return scopeMetrics[0].metrics.find((metric) => metric.descriptor.name === name);
+  }
+});
+
+describe("export", () => {
+  let metrics;
+
+  before(() => {
+    process.env.gcloud_project = "test-project";
+    process.env.GOOGLE_APPLICATION_CREDENTIALS = "test/test-credentials";
+    process.env.METADATA_SERVER_DETECTION = "none";
+
+    nock.disableNetConnect();
+    nock("https://oauth2.googleapis.com")
+      .persist()
+      .post("/token")
+      .reply(200, { access_token: "test-token", expires_in: 3600 });
+
+    const expMetrics = proxyquire("..", {});
+    metrics = expMetrics("test-name");
+  });
+
+  after(() => {
+    delete process.env.gcloud_project;
+    delete process.env.GOOGLE_APPLICATION_CREDENTIALS;
+    delete process.env.METADATA_SERVER_DETECTION;
+    nock.cleanAll();
+    nock.enableNetConnect();
+  });
+
+  it("sends OTLP protobuf to the Telemetry API with Google credentials", async () => {
+    let headers;
+    const scope = nock("https://telemetry.googleapis.com")
+      .post("/v1/metrics")
+      .reply(function reply() {
+        headers = this.req.headers;
+        return [ 200, "" ];
+      });
+
+    metrics.counter({ name: "exported_counter" }).inc();
+
+    await metrics.forceFlush();
+
+    expect(scope.isDone()).to.equal(true);
+    expect(headers).to.include({
+      authorization: "Bearer test-token",
+      "content-type": "application/x-protobuf",
+    });
+  });
+
+  it("splits exports into requests of at most 200 data points", async () => {
+    const scope = nock("https://telemetry.googleapis.com")
+      .post("/v1/metrics")
+      .times(2)
+      .reply(200, "");
+
+    const counter = metrics.counter({ name: "batched_counter" });
+    for (let i = 0; i < 201; i++) {
+      counter.inc({ label: `value-${i}` });
+    }
+
+    await metrics.forceFlush();
+
+    expect(scope.isDone()).to.equal(true);
   });
 });
 
-function expectedMetricDescriptorsRequest(expected) {
-  expectedRequest("/v3/projects/test-project/metricDescriptors", expected);
-}
-
-function expectedTimeSeriesRequest(name, expected) {
-  expectedRequest("/v3/projects/test-project/timeSeries", expected, name, filterTimeSeries);
-}
-
-function expectedRequest(route, expected, name, filterFunction = (body) => body) {
-  requestPromises.push(new Promise((resolve, reject) => {
-    const timeout = setTimeout(() => {
-      reject(new Error(`The route "${route}" was never reqested`));
-    }, 1000);
-
-    metricsEndpoint.post(route, (body) => {
-      requests.push({
-        expected,
-        body: filterFunction(body, name),
-      });
-
-      clearTimeout(timeout);
-      resolve();
-      return true;
-    })
-      .reply(200, {});
-  }));
-}
-
-function filterTimeSeries(body, name) {
-  return {
-    ...body,
-    timeSeries: body.timeSeries.filter((item) => {
-      return item.metric.type.endsWith(name);
-    }),
-  };
-}
-
-async function expectRequests() {
-  await Promise.all(requestPromises);
-
-  requests.forEach(({ expected, body }) => {
-    testRequestBody(expected, body);
-  });
-
-  expect(metricsEndpoint.pendingMocks()).to.deep.equal([]);
-  requests.length = 0;
+function getPoints(metric) {
+  return metric.dataPoints.map(({ attributes, value }) => ({ attributes, value }));
 }
