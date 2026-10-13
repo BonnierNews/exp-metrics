@@ -97,6 +97,22 @@ describe("metrics", () => {
     ]);
   });
 
+  it("gauge keeps labels when the caller reuses the labels object", async () => {
+    const gauge = metrics.gauge({ name: "reused_labels_gauge" });
+
+    const labels = { queue: "a" };
+    gauge.set(labels, 10);
+    labels.queue = "b";
+    gauge.set(labels, 20);
+
+    await metrics.forceFlush();
+
+    expect(getPoints(getMetric("reused_labels_gauge"))).to.deep.equal([
+      { attributes: { queue: "a" }, value: 10 },
+      { attributes: { queue: "b" }, value: 20 },
+    ]);
+  });
+
   it("summary", async () => {
     const summary = metrics.summary({
       name: "my_summary",

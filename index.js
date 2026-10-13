@@ -45,7 +45,7 @@ module.exports = function expMetrics(applicationName = "exp-metrics", config = {
           const { delta, attrs } = getParams(args);
           const key = getAttributesKey(attrs);
           const value = fn(values.get(key)?.value ?? 0, delta);
-          values.set(key, { value, attrs });
+          values.set(key, { value, attrs: { ...attrs } });
         }
 
         return {
