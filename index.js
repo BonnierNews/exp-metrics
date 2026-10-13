@@ -97,6 +97,7 @@ module.exports = function expMetrics(applicationName = "exp-metrics", config = {
     reader = new PeriodicExportingMetricReader({
       exporter,
       exportIntervalMillis: 60_000,
+      maxExportBatchSize: 200,
     });
 
     const meterProvider = new MeterProvider({

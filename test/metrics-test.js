@@ -173,6 +173,22 @@ describe("export", () => {
       "content-type": "application/x-protobuf",
     });
   });
+
+  it("splits exports into requests of at most 200 data points", async () => {
+    const scope = nock("https://telemetry.googleapis.com")
+      .post("/v1/metrics")
+      .times(2)
+      .reply(200, "");
+
+    const counter = metrics.counter({ name: "batched_counter" });
+    for (let i = 0; i < 201; i++) {
+      counter.inc({ label: `value-${i}` });
+    }
+
+    await metrics.forceFlush();
+
+    expect(scope.isDone()).to.equal(true);
+  });
 });
 
 function getPoints(metric) {
