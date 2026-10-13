@@ -16,7 +16,11 @@ OpenTelemetry lacks.
   - `inc([labels,] [value])`
   - `dec([labels,] [value])`
 - Summary (histogram in OpenTelemetry terms)
-  - `observe([labels,] value)`
+  - `observe([labels,] value)` or `observe(value[, labels])`
+
+Creating a metric with a name that already exists returns the existing metric, so `metrics.counter({ name: "x" })` is safe to call per request.
+
+A gauge keeps one value per label set, i.e. `gauge.set({ queue: "a" }, 1)` and `gauge.set({ queue: "b" }, 2)` are reported as two series.
 
 
 ## Installing
@@ -48,7 +52,45 @@ myCounter.inc({ foo: "bar" }, 3);
 
 See more in the [prom-client](https://github.com/siimon/prom-client?tab=readme-ov-file#custom-metrics) documentation.
 
-For overriding the default OpenTelemetry configuration, see the [OpenTelemetry documentation](https://www.npmjs.com/package/@opentelemetry/resources)
+TypeScript types are included.
+
+### Options
+
+- `enabled` (default `true`): `false` keeps the same API but exports nothing and never calls Google Cloud, e.g. for tests and local development
+- `buckets`: explicit histogram buckets for every summary, see [Histogram buckets](#histogram-buckets)
+
+Any other key is set as an OpenTelemetry resource attribute, overriding the defaults (`gcp.project_id`, `service.name`, `service.namespace`, `service.instance.id`).
+See the [OpenTelemetry documentation](https://www.npmjs.com/package/@opentelemetry/resources).
+
+### Histogram buckets
+
+Summaries are exported as exponential histograms by default. They have fine resolution per series,
+but every series picks its own bucket layout, so percentiles aggregated across series (e.g. p95 over all instances) in Cloud Monitoring can be very coarse.
+
+Explicit buckets give every series the same layout, so they aggregate exactly, with a precision of the bucket width:
+
+```javascript
+// one summary
+metrics.summary({ name: "my_summary", buckets: [ 10, 50, 100, 250, 500, 1000 ] });
+
+// every summary, including http_response_time_milliseconds
+// true = OpenTelemetry defaults [ 0, 5, 10, 25, 50, 75, 100, 250, 500, 750, 1000, 2500, 5000, 7500, 10000 ]
+expMetrics("my-service-name", { buckets: true });
+expMetrics("my-service-name", { buckets: [ 10, 50, 100, 250, 500, 1000 ] });
+```
+
+Summaries with their own `buckets` are exported with the instrumentation scope `exp-metrics-buckets` instead of `exp-metrics`.
+
+### Shutdown
+
+Metrics are exported every 60 seconds. Flush the remaining metrics before the process exits:
+
+```javascript
+process.on("SIGTERM", async () => {
+  await metrics.shutdown();
+  process.exit(0);
+});
+```
 
 ## Google Cloud
 

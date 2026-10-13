@@ -9,64 +9,78 @@ const { gcpDetector } = require("@opentelemetry/resource-detector-gcp");
 const crypto = require("crypto");
 const onFinished = require("on-finished");
 
+let meterProvider;
 let meter;
-let reader;
+let bucketMeter;
+let defaultBuckets;
 let responseCodes;
 let responseTime;
+const instruments = new Map();
 
 module.exports = function expMetrics(applicationName = "exp-metrics", config = {}) {
   const metrics = {
     counter(metricConfig) {
-      const metric = meter.createCounter(...getOtConfig(metricConfig));
-      return {
-        metric,
-        inc(...args) {
-          const { delta, attrs } = getParams(args);
-          return metric.add(delta, attrs);
-        },
-      };
+      return getInstrument(metricConfig.name, () => {
+        const metric = meter.createCounter(...getOtConfig(metricConfig));
+        return {
+          metric,
+          inc(...args) {
+            const { delta, attrs } = getParams(args);
+            return metric.add(delta, attrs);
+          },
+        };
+      });
     },
     gauge(metricConfig) {
-      let value = 0;
-      let attributes = {};
-      const metric = meter.createObservableGauge(...getOtConfig(metricConfig));
-      metric.addCallback((result) => {
-        result.observe(value, attributes);
-      });
+      return getInstrument(metricConfig.name, () => {
+        const values = new Map();
+        const metric = meter.createObservableGauge(...getOtConfig(metricConfig));
+        metric.addCallback((result) => {
+          for (const { value, attrs } of values.values()) {
+            result.observe(value, attrs);
+          }
+        });
 
-      return {
-        metric,
-        set(...args) {
+        function update(args, fn) {
           const { delta, attrs } = getParams(args);
-          value = delta;
-          attributes = attrs;
-        },
-        inc(...args) {
-          const { delta, attrs } = getParams(args);
-          value += delta;
-          attributes = attrs;
-        },
-        dec(...args) {
-          const { delta, attrs } = getParams(args);
-          value -= delta;
-          attributes = attrs;
-        },
-      };
+          const key = getAttributesKey(attrs);
+          const value = fn(values.get(key)?.value ?? 0, delta);
+          values.set(key, { value, attrs });
+        }
+
+        return {
+          metric,
+          set(...args) {
+            update(args, (_value, delta) => delta);
+          },
+          inc(...args) {
+            update(args, (value, delta) => value + delta);
+          },
+          dec(...args) {
+            update(args, (value, delta) => value - delta);
+          },
+        };
+      });
     },
     summary(metricConfig) {
-      const metric = meter.createHistogram(...getOtConfig(metricConfig));
-      return {
-        metric,
-        observe(...args) {
-          if (args.length > 1) {
-            return metric.record(args[1] ?? 1, args[0]);
-          }
-          return metric.record(args[0] ?? 1);
-        },
-      };
+      return getInstrument(metricConfig.name, () => {
+        const buckets = metricConfig.buckets ?? defaultBuckets;
+        const histogramMeter = buckets ? bucketMeter : meter;
+        const metric = histogramMeter.createHistogram(...getOtConfig({ ...metricConfig, ...(buckets && { buckets }) }));
+        return {
+          metric,
+          observe(...args) {
+            const { delta, attrs } = getParams(args);
+            return metric.record(delta, attrs);
+          },
+        };
+      });
     },
     async forceFlush() {
-      await reader.forceFlush();
+      await meterProvider.forceFlush();
+    },
+    async shutdown() {
+      await meterProvider.shutdown();
     },
     responseTimeMiddleware(req, res, next) {
       const start = Date.now();
@@ -80,37 +94,11 @@ module.exports = function expMetrics(applicationName = "exp-metrics", config = {
   };
 
   if (!meter) {
-    const auth = new GoogleAuth({ scopes: "https://www.googleapis.com/auth/cloud-platform" });
-    const resourceConfig = {
-      "gcp.project_id": config["gcp.project_id"] ?? auth.getProjectId(),
-      "service.name": applicationName,
-      "service.namespace": `${process.env.NODE_ENV === "production" ? "prod" : process.env.NODE_ENV}`,
-      "service.instance.id": crypto.randomUUID(),
-      ...config,
-    };
-    const exporter = new OTLPMetricExporter({
-      url: "https://telemetry.googleapis.com/v1/metrics",
-      async headers() {
-        return Object.fromEntries(await auth.getRequestHeaders());
-      },
-    });
-    reader = new PeriodicExportingMetricReader({
-      exporter,
-      exportIntervalMillis: 60_000,
-      maxExportBatchSize: 200,
-    });
-
-    const meterProvider = new MeterProvider({
-      readers: [ reader ],
-      resource: resourceFromAttributes(resourceConfig).merge(
-        detectResources({ detectors: [ containerDetector, gcpDetector ] })
-      ),
-      views: [ {
-        instrumentType: InstrumentType.HISTOGRAM,
-        aggregation: { type: AggregationType.EXPONENTIAL_HISTOGRAM },
-      } ],
-    });
+    const { enabled = true, buckets, ...attributes } = config;
+    meterProvider = enabled ? createMeterProvider(applicationName, attributes, buckets) : new MeterProvider();
     meter = meterProvider.getMeter("exp-metrics");
+    bucketMeter = meterProvider.getMeter("exp-metrics-buckets");
+    defaultBuckets = Array.isArray(buckets) ? buckets : undefined;
 
     responseTime = metrics.summary({
       name: "http_response_time_milliseconds",
@@ -127,6 +115,51 @@ module.exports = function expMetrics(applicationName = "exp-metrics", config = {
   return metrics;
 };
 
+function createMeterProvider(applicationName, attributes, buckets) {
+  const auth = new GoogleAuth({ scopes: "https://www.googleapis.com/auth/cloud-platform" });
+  const resourceConfig = {
+    "gcp.project_id": attributes["gcp.project_id"] ?? auth.getProjectId(),
+    "service.name": applicationName,
+    "service.namespace": `${process.env.NODE_ENV === "production" ? "prod" : process.env.NODE_ENV}`,
+    "service.instance.id": crypto.randomUUID(),
+    ...attributes,
+  };
+  const exporter = new OTLPMetricExporter({
+    url: "https://telemetry.googleapis.com/v1/metrics",
+    async headers() {
+      return Object.fromEntries(await auth.getRequestHeaders());
+    },
+  });
+  const reader = new PeriodicExportingMetricReader({
+    exporter,
+    exportIntervalMillis: 60_000,
+    maxExportBatchSize: 200,
+  });
+
+  return new MeterProvider({
+    readers: [ reader ],
+    resource: resourceFromAttributes(resourceConfig).merge(
+      detectResources({ detectors: [ containerDetector, gcpDetector ] })
+    ),
+    views: buckets ? [] : [ {
+      instrumentType: InstrumentType.HISTOGRAM,
+      meterName: "exp-metrics",
+      aggregation: { type: AggregationType.EXPONENTIAL_HISTOGRAM },
+    } ],
+  });
+}
+
+function getInstrument(name, create) {
+  if (!instruments.has(name)) {
+    instruments.set(name, create());
+  }
+  return instruments.get(name);
+}
+
+function getAttributesKey(attrs) {
+  return JSON.stringify(Object.keys(attrs).sort().map((key) => [ key, attrs[key] ]));
+}
+
 function getOtConfig(metricConfig) {
   const name = metricConfig.name;
   const config = prometheusToOpenTelemetry(metricConfig);
@@ -142,7 +175,7 @@ function prometheusToOpenTelemetry(config) {
     help: "description",
     unit: "unit",
     valueType: "valueType",
-    percentiles(key) {
+    buckets(key) {
       return { advice: { explicitBucketBoundaries: key } };
     },
   };

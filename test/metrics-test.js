@@ -81,10 +81,10 @@ describe("metrics", () => {
     });
 
     gauge.set({ foo: "bar" }, 5);
-    gauge.inc(); //     6
-    gauge.inc(13); //  19
-    gauge.dec(); //    18
-    gauge.dec(2); //   16
+    gauge.inc({ foo: "bar" }); // 6
+    gauge.inc(13); //            13
+    gauge.dec(); //              12
+    metrics.gauge({ name: "my_gauge" }).dec({ foo: "bar" }, 2); // 4
 
     await metrics.forceFlush();
 
@@ -92,7 +92,8 @@ describe("metrics", () => {
     expect(metric.descriptor).to.include({ description: "My gauge" });
     expect(metric.dataPointType).to.equal(DataPointType.GAUGE);
     expect(getPoints(metric)).to.deep.equal([
-      { attributes: {}, value: 16 },
+      { attributes: { foo: "bar" }, value: 4 },
+      { attributes: {}, value: 12 },
     ]);
   });
 
@@ -104,7 +105,7 @@ describe("metrics", () => {
     });
 
     summary.observe({ foo: "bar" }, 10);
-    summary.observe({ foo: "bar" }, 20);
+    summary.observe(20, { foo: "bar" });
     summary.observe(10);
     summary.observe(20);
     summary.observe(40);
@@ -122,10 +123,85 @@ describe("metrics", () => {
     ]);
   });
 
+  it("summary with buckets", async () => {
+    const summary = metrics.summary({
+      name: "my_bucket_summary",
+      buckets: [ 10, 100 ],
+    });
+
+    summary.observe(5);
+    summary.observe(50);
+    summary.observe(500);
+
+    await metrics.forceFlush();
+
+    const metric = getMetric("my_bucket_summary");
+    expect(metric.dataPointType).to.equal(DataPointType.HISTOGRAM);
+    expect(metric.dataPoints[0].value.buckets).to.deep.equal({ boundaries: [ 10, 100 ], counts: [ 1, 1, 1 ] });
+  });
+
   function getMetric(name) {
-    const { scopeMetrics } = exporter.getMetrics().at(-1);
-    return scopeMetrics[0].metrics.find((metric) => metric.descriptor.name === name);
+    return findMetric(exporter, name);
   }
+});
+
+describe("buckets for all summaries", () => {
+  let exporter;
+  let expMetrics;
+
+  before(() => {
+    process.env.gcloud_project = "test-project";
+    process.env.METADATA_SERVER_DETECTION = "none";
+  });
+
+  beforeEach(() => {
+    exporter = new InMemoryMetricExporter(AggregationTemporality.CUMULATIVE);
+    expMetrics = proxyquire("..", {
+      "@opentelemetry/exporter-metrics-otlp-proto": {
+        OTLPMetricExporter: function OTLPMetricExporter() {
+          return exporter;
+        },
+      },
+    });
+  });
+
+  after(() => {
+    delete process.env.gcloud_project;
+    delete process.env.METADATA_SERVER_DETECTION;
+  });
+
+  it("true uses the OpenTelemetry default buckets", async () => {
+    const metrics = expMetrics("test-name", { buckets: true });
+    metrics.summary({ name: "default_bucket_summary" }).observe(42);
+
+    await metrics.forceFlush();
+
+    const metric = findMetric(exporter, "default_bucket_summary");
+    expect(metric.dataPointType).to.equal(DataPointType.HISTOGRAM);
+    expect(metric.dataPoints[0].value.buckets.boundaries).to.deep.equal([ 0, 5, 10, 25, 50, 75, 100, 250, 500, 750, 1000, 2500, 5000, 7500, 10000 ]);
+    await metrics.shutdown();
+  });
+
+  it("array is used unless the summary has its own buckets", async () => {
+    const metrics = expMetrics("test-name", { buckets: [ 1, 2 ] });
+    metrics.summary({ name: "service_bucket_summary" }).observe(1);
+    metrics.summary({ name: "own_bucket_summary", buckets: [ 3, 4 ] }).observe(1);
+
+    await metrics.forceFlush();
+
+    expect(findMetric(exporter, "service_bucket_summary").dataPoints[0].value.buckets.boundaries).to.deep.equal([ 1, 2 ]);
+    expect(findMetric(exporter, "own_bucket_summary").dataPoints[0].value.buckets.boundaries).to.deep.equal([ 3, 4 ]);
+    await metrics.shutdown();
+  });
+
+  it("shutdown exports remaining metrics", async () => {
+    const metrics = expMetrics("test-name");
+    metrics.counter({ name: "shutdown_counter" }).inc();
+
+    await metrics.shutdown();
+
+    expect(getPoints(findMetric(exporter, "shutdown_counter"))).to.deep.equal([ { attributes: {}, value: 1 } ]);
+  });
 });
 
 describe("export", () => {
@@ -189,7 +265,25 @@ describe("export", () => {
 
     expect(scope.isDone()).to.equal(true);
   });
+
+  it("does not export when disabled", async () => {
+    const scope = nock("https://telemetry.googleapis.com")
+      .post("/v1/metrics")
+      .reply(200, "");
+
+    const disabledMetrics = proxyquire("..", {})("test-name", { enabled: false });
+    disabledMetrics.counter({ name: "disabled_counter" }).inc();
+
+    await disabledMetrics.forceFlush();
+
+    expect(scope.isDone()).to.equal(false);
+  });
 });
+
+function findMetric(exporter, name) {
+  const { scopeMetrics } = exporter.getMetrics().at(-1);
+  return scopeMetrics.flatMap(({ metrics }) => metrics).find((metric) => metric.descriptor.name === name);
+}
 
 function getPoints(metric) {
   return metric.dataPoints.map(({ attributes, value }) => ({ attributes, value }));

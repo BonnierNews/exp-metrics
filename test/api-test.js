@@ -137,43 +137,28 @@ describe("API", () => {
       const { mockCollect: cl } = gauge.metric;
 
       gauge.set(1);
-      cl();
       gauge.set({ foo: "bar1" }, 2);
-      cl();
 
-      gauge.inc(); // 3
-      cl();
-      gauge.inc(10); // 13
-      cl();
-      gauge.inc({ foo: "bar2" }); // 14
-      cl();
-      gauge.inc({ foo: "bar3" }, 5); // 19
-      cl();
+      gauge.inc(); // 2
+      gauge.inc(10); // 12
+      gauge.inc({ foo: "bar2" }); // 1
+      gauge.inc({ foo: "bar3" }, 5); // 5
 
-      gauge.dec(); // 18
-      cl();
-      gauge.dec(10); // 8
-      cl();
-      gauge.dec({ foo: "bar4" }); // 7
-      cl();
-      gauge.dec({ foo: "bar5" }, 3); // 4
-      cl();
+      gauge.dec(); // 11
+      gauge.dec(10); // 1
+      gauge.dec({ foo: "bar4" }); // -1
+      gauge.dec({ foo: "bar5" }, 3); // -3
 
-      gauge.set(0);
+      gauge.set({ foo: "bar2" }, 0);
       cl();
 
       expect(gauge.metric.calls).to.deep.equal([
         [ 1, {} ],
         [ 2, { foo: "bar1" } ],
-        [ 3, {} ],
-        [ 13, {} ],
-        [ 14, { foo: "bar2" } ],
-        [ 19, { foo: "bar3" } ],
-        [ 18, {} ],
-        [ 8, {} ],
-        [ 7, { foo: "bar4" } ],
-        [ 4, { foo: "bar5" } ],
-        [ 0, {} ],
+        [ 0, { foo: "bar2" } ],
+        [ 5, { foo: "bar3" } ],
+        [ -1, { foo: "bar4" } ],
+        [ -3, { foo: "bar5" } ],
       ]);
 
       const gauge2 = metrics.gauge({ name: "my_gauge_2" });
@@ -184,6 +169,7 @@ describe("API", () => {
       const summary = metrics.summary({
         name: "my_summary",
         help: "My summary",
+        buckets: [ 10, 100, 1000 ],
         percentiles: [ 0.5, 0.95, 0.99 ],
         invalidPropetry: "invalid",
       });
@@ -191,7 +177,7 @@ describe("API", () => {
         "my_summary",
         {
           description: "My summary",
-          advice: { explicitBucketBoundaries: [ 0.5, 0.95, 0.99 ] },
+          advice: { explicitBucketBoundaries: [ 10, 100, 1000 ] },
         },
       ]);
 
@@ -205,14 +191,22 @@ describe("API", () => {
       summary.observe(0);
       summary.observe({ foo: "bar" }, 2);
       summary.observe({ foo: "bar" }, 0);
+      summary.observe(3, { foo: "bar" });
 
       expect(records).to.deep.equal([
-        [ 1 ],
-        [ 1 ],
-        [ 0 ],
+        [ 1, {} ],
+        [ 1, {} ],
+        [ 0, {} ],
         [ 2, { foo: "bar" } ],
         [ 0, { foo: "bar" } ],
+        [ 3, { foo: "bar" } ],
       ]);
+    });
+
+    it("returns the same instrument for the same name", () => {
+      expect(metrics.counter({ name: "same_counter" })).to.equal(metrics.counter({ name: "same_counter" }));
+      expect(metrics.gauge({ name: "same_gauge" })).to.equal(metrics.gauge({ name: "same_gauge" }));
+      expect(metrics.summary({ name: "same_summary" })).to.equal(metrics.summary({ name: "same_summary" }));
     });
   });
 });
