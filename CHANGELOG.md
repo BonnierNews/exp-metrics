@@ -18,7 +18,7 @@ Changelog
 - TypeScript types
 
 ## Changed
-- Bump OpenTelemetry JS to 2.x, fixing known vulnerabilities
+- Bump OpenTelemetry JS to 3.x, fixing known vulnerabilities
 - Remove the deprecated `GcpDetectorSync` resource detector, `@opentelemetry/resource-detector-gcp` detects the same attributes
 - Set the `gcp.project_id` resource attribute from Application Default Credentials, overridable via config
 - `proxyquire` is now a dev dependency
