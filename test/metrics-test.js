@@ -113,6 +113,14 @@ describe("metrics", () => {
     ]);
   });
 
+  it("returns separate instruments for different types with the same name", () => {
+    const counter = metrics.counter({ name: "shared_name" });
+    const gauge = metrics.gauge({ name: "shared_name" });
+
+    expect(gauge).to.not.equal(counter);
+    expect(gauge.set).to.be.a("function");
+  });
+
   it("summary", async () => {
     const summary = metrics.summary({
       name: "my_summary",

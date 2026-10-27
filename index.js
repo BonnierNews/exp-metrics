@@ -20,7 +20,7 @@ const instruments = new Map();
 module.exports = function expMetrics(applicationName = "exp-metrics", config = {}) {
   const metrics = {
     counter(metricConfig) {
-      return getInstrument(metricConfig.name, () => {
+      return getInstrument("counter", metricConfig.name, () => {
         const metric = meter.createCounter(...getOtConfig(metricConfig));
         return {
           metric,
@@ -32,7 +32,7 @@ module.exports = function expMetrics(applicationName = "exp-metrics", config = {
       });
     },
     gauge(metricConfig) {
-      return getInstrument(metricConfig.name, () => {
+      return getInstrument("gauge", metricConfig.name, () => {
         const values = new Map();
         const metric = meter.createObservableGauge(...getOtConfig(metricConfig));
         metric.addCallback((result) => {
@@ -63,7 +63,7 @@ module.exports = function expMetrics(applicationName = "exp-metrics", config = {
       });
     },
     summary(metricConfig) {
-      return getInstrument(metricConfig.name, () => {
+      return getInstrument("summary", metricConfig.name, () => {
         const buckets = metricConfig.buckets ?? defaultBuckets;
         const histogramMeter = buckets ? bucketMeter : meter;
         const metric = histogramMeter.createHistogram(...getOtConfig({ ...metricConfig, ...(buckets && { buckets }) }));
@@ -149,11 +149,12 @@ function createMeterProvider(applicationName, attributes, buckets) {
   });
 }
 
-function getInstrument(name, create) {
-  if (!instruments.has(name)) {
-    instruments.set(name, create());
+function getInstrument(type, name, create) {
+  const key = `${type}:${name}`;
+  if (!instruments.has(key)) {
+    instruments.set(key, create());
   }
-  return instruments.get(name);
+  return instruments.get(key);
 }
 
 function getAttributesKey(attrs) {
