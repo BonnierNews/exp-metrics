@@ -2,7 +2,7 @@
 
 const { expect } = require("chai");
 const proxyquire = require("proxyquire").noCallThru().noPreserveCache();
-const nock = require("nock");
+const { default: nock } = require("nock");
 const { InMemoryMetricExporter, AggregationTemporality, DataPointType } = require("@opentelemetry/sdk-metrics");
 
 const { DiagLogLevel, diag } = require("@opentelemetry/api");
@@ -251,15 +251,15 @@ describe("export", () => {
     delete process.env.GOOGLE_APPLICATION_CREDENTIALS;
     delete process.env.METADATA_SERVER_DETECTION;
     nock.cleanAll();
-    nock.enableNetConnect();
+    nock.enableNetConnect(/^(localhost|127\.0\.0\.1):\d+$/);
   });
 
   it("sends OTLP protobuf to the Telemetry API with Google credentials", async () => {
     let headers;
     const scope = nock("https://telemetry.googleapis.com")
       .post("/v1/metrics")
-      .reply(function reply() {
-        headers = this.req.headers;
+      .reply((request) => {
+        headers = Object.fromEntries(request.headers);
         return [ 200, "" ];
       });
 
