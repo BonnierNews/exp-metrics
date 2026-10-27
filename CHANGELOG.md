@@ -7,6 +7,15 @@ Changelog
 - Requires Node.js >= 24
 - Metrics are exported over OTLP to the Google Cloud Telemetry API (`telemetry.googleapis.com`) instead of the deprecated Cloud Monitoring exporter. Metric names change from `workload.googleapis.com/<name>` to `prometheus.googleapis.com/<name>/<counter|gauge|histogram>` on the `prometheus_target` resource, so dashboards and alerts must be updated
 - The service account needs `roles/telemetry.writer`, and the Telemetry API must be enabled in the project
+- A gauge keeps one value per label set, instead of one value with the last used labels
+- The summary option `percentiles` is ignored, it was used as histogram bucket boundaries. Use `buckets` instead
+
+## Added
+- `buckets` option for explicit histogram buckets, per summary or for all summaries
+- `enabled` option, `false` disables exporting
+- `shutdown()` flushes and stops exporting
+- `summary.observe(value, labels)` argument order
+- TypeScript types
 
 ## Changed
 - Bump OpenTelemetry JS to 2.x, fixing known vulnerabilities
@@ -16,6 +25,7 @@ Changelog
 
 ## Fixed
 - `summary.observe(0)` records 0 instead of 1
+- Creating a metric with an existing name returns the existing metric, instead of creating a new one. For gauges this leaked a callback per call
 
 # 2.0.0
 

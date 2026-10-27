@@ -3,6 +3,7 @@
   "version": "3.0.0",
   "description": "Simple bootstrapping of basic prometheus metrics for your express based application.",
   "main": "index.js",
+  "types": "index.d.ts",
   "scripts": {
     "test": "mocha test",
     "posttest": "eslint .",
@@ -42,6 +43,7 @@
     "on-finished": "^2.3.0"
   },
   "files": [
-    "index.js"
+    "index.js",
+    "index.d.ts"
   ]
 }

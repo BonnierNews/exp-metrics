@@ -73,8 +73,8 @@ Feature("middleware", () => {
 
   Then("the response time metric should have been called", () => {
     expect(createHistogramSpy.record.calls).to.deep.equal([
-      [ 42 ],
-      [ 37 ],
+      [ 42, {} ],
+      [ 37, {} ],
     ]);
   });
 
