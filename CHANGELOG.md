@@ -1,7 +1,7 @@
 Changelog
 =========
 
-# Unreleased
+# 4.0.0
 
 ## Breaking
 - Requires Node.js >= 24
