@@ -12,5 +12,5 @@ module.exports = {
   timeout: 1000,
   reporter: "spec",
   recursive: true,
-  ui: "mocha-cakes-2",
+  ui: "@bonniernews/mocha-cakes-2",
 };
