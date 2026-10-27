@@ -104,3 +104,51 @@ Requirements:
 
 Metrics show up in Cloud Monitoring as `prometheus.googleapis.com/<name>/<counter|gauge|histogram>` on the `prometheus_target` resource,
 e.g. `prometheus.googleapis.com/http_responses_total/counter`.
+
+## Migrating from 3.x to 4.x
+
+4.x replaces the deprecated Cloud Monitoring exporter with OTLP export to the Telemetry API. The JavaScript API is the same, but metric names and Google Cloud setup change.
+
+### 1. Node.js 24
+
+4.x requires Node.js >= 24.
+
+### 2. Google Cloud setup
+
+In every project the service exports metrics to:
+
+```sh
+gcloud services enable telemetry.googleapis.com --project <project>
+gcloud projects add-iam-policy-binding <project> \
+  --member serviceAccount:<service-account> \
+  --role roles/telemetry.writer
+```
+
+Without these, exports fail and no metrics are written.
+
+### 3. Dashboards and alerts
+
+Metric names and the monitored resource change, so every dashboard, alert and SLO built on exp-metrics must be updated:
+
+| Metric type | 3.x | 4.x |
+| ----------- | --- | --- |
+| Counter | `workload.googleapis.com/my_counter` | `prometheus.googleapis.com/my_counter/counter` |
+| Gauge | `workload.googleapis.com/my_gauge` | `prometheus.googleapis.com/my_gauge/gauge` |
+| Summary | `workload.googleapis.com/my_summary` | `prometheus.googleapis.com/my_summary/histogram` |
+
+The monitored resource is `prometheus_target`. The 4.x metrics start empty when the service is deployed, history stays on the old `workload.googleapis.com` metrics.
+Keep the old charts next to the new ones until the new metrics have enough history.
+
+### 4. Code
+
+- `percentiles` is ignored. It was used as histogram bucket boundaries, use `buckets` instead:
+  ```javascript
+  // 3.x
+  metrics.summary({ name: "my_summary", percentiles: [ 10, 50, 100 ] });
+  // 4.x
+  metrics.summary({ name: "my_summary", buckets: [ 10, 50, 100 ] });
+  ```
+- A gauge reports one series per label set. In 3.x only the last used labels were reported, so a gauge that is set with changing labels now reports every label set it has seen, each with its last value.
+- `summary.observe(0)` records 0. In 3.x it recorded 1.
+- Call `metrics.shutdown()` on `SIGTERM` to export the last metrics before the process exits, see [Shutdown](#shutdown).
+- Optional: use `enabled: false` in tests and local development instead of mocking exp-metrics.
