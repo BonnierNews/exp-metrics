@@ -1,11 +1,11 @@
 "use strict";
 
-const { MetricExporter } = require("@google-cloud/opentelemetry-cloud-monitoring-exporter");
-const { MeterProvider, PeriodicExportingMetricReader, InstrumentType, View, Aggregation } = require("@opentelemetry/sdk-metrics");
-const { Resource, detectResourcesSync } = require("@opentelemetry/resources");
+const { OTLPMetricExporter } = require("@opentelemetry/exporter-metrics-otlp-proto");
+const { GoogleAuth } = require("google-auth-library");
+const { MeterProvider, PeriodicExportingMetricReader, InstrumentType, AggregationType } = require("@opentelemetry/sdk-metrics");
+const { resourceFromAttributes, detectResources } = require("@opentelemetry/resources");
 const { containerDetector } = require("@opentelemetry/resource-detector-container");
 const { gcpDetector } = require("@opentelemetry/resource-detector-gcp");
-const { GcpDetectorSync } = require("@google-cloud/opentelemetry-resource-util");
 const crypto = require("crypto");
 const onFinished = require("on-finished");
 
@@ -59,9 +59,9 @@ module.exports = function expMetrics(applicationName = "exp-metrics", config = {
         metric,
         observe(...args) {
           if (args.length > 1) {
-            return metric.record(args[1] || 1, args[0]);
+            return metric.record(args[1] ?? 1, args[0]);
           }
-          return metric.record(args[0] || 1);
+          return metric.record(args[0] ?? 1);
         },
       };
     },
@@ -80,27 +80,35 @@ module.exports = function expMetrics(applicationName = "exp-metrics", config = {
   };
 
   if (!meter) {
+    const auth = new GoogleAuth({ scopes: "https://www.googleapis.com/auth/cloud-platform" });
     const resourceConfig = {
+      "gcp.project_id": config["gcp.project_id"] ?? auth.getProjectId(),
       "service.name": applicationName,
       "service.namespace": `${process.env.NODE_ENV === "production" ? "prod" : process.env.NODE_ENV}`,
       "service.instance.id": crypto.randomUUID(),
       ...config,
     };
-    const exporter = new MetricExporter();
+    const exporter = new OTLPMetricExporter({
+      url: "https://telemetry.googleapis.com/v1/metrics",
+      async headers() {
+        return Object.fromEntries(await auth.getRequestHeaders());
+      },
+    });
     reader = new PeriodicExportingMetricReader({
       exporter,
       exportIntervalMillis: 60_000,
+      maxExportBatchSize: 200,
     });
 
     const meterProvider = new MeterProvider({
       readers: [ reader ],
-      resource: new Resource(resourceConfig).merge(
-        detectResourcesSync({ detectors: [ containerDetector, gcpDetector, new GcpDetectorSync() ] })
+      resource: resourceFromAttributes(resourceConfig).merge(
+        detectResources({ detectors: [ containerDetector, gcpDetector ] })
       ),
-      views: [ new View({
+      views: [ {
         instrumentType: InstrumentType.HISTOGRAM,
-        aggregation: Aggregation.ExponentialHistogram(), // eslint-disable-line new-cap
-      }) ],
+        aggregation: { type: AggregationType.EXPONENTIAL_HISTOGRAM },
+      } ],
     });
     meter = meterProvider.getMeter("exp-metrics");
 

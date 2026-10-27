@@ -36,18 +36,22 @@ describe("API", () => {
       crypto.randomUUID = randomUUID;
     });
 
-    it("no arguments", () => {
+    it("no arguments", async () => {
       metrics = expMetrics();
-      expect(mockResource.ctorArgs.at(-1)).to.deep.equal({
+      const { "gcp.project_id": projectId, ...attributes } = mockResource.ctorArgs.at(-1);
+      expect(await projectId).to.equal("env-project");
+      expect(attributes).to.deep.equal({
         "service.name": "exp-metrics",
         "service.namespace": "test",
         "service.instance.id": "random-uuid",
       });
     });
 
-    it("only name", () => {
+    it("only name", async () => {
       metrics = expMetrics("test-app");
-      expect(mockResource.ctorArgs.at(-1)).to.deep.equal({
+      const { "gcp.project_id": projectId, ...attributes } = mockResource.ctorArgs.at(-1);
+      expect(await projectId).to.equal("env-project");
+      expect(attributes).to.deep.equal({
         "service.name": "test-app",
         "service.namespace": "test",
         "service.instance.id": "random-uuid",
@@ -56,11 +60,13 @@ describe("API", () => {
 
     it("full config", () => {
       metrics = expMetrics("test-app", {
+        "gcp.project_id": "project-override",
         "service.name": "name-override",
         "service.namespace": "namespace-override",
         "service.instance.id": "instance-override",
       });
       expect(mockResource.ctorArgs.at(-1)).to.deep.equal({
+        "gcp.project_id": "project-override",
         "service.name": "name-override",
         "service.namespace": "namespace-override",
         "service.instance.id": "instance-override",
@@ -196,12 +202,16 @@ describe("API", () => {
 
       summary.observe();
       summary.observe(1);
+      summary.observe(0);
       summary.observe({ foo: "bar" }, 2);
+      summary.observe({ foo: "bar" }, 0);
 
       expect(records).to.deep.equal([
         [ 1 ],
         [ 1 ],
+        [ 0 ],
         [ 2, { foo: "bar" } ],
+        [ 0, { foo: "bar" } ],
       ]);
     });
   });
