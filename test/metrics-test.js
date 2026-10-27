@@ -151,7 +151,7 @@ describe("export", () => {
     delete process.env.GOOGLE_APPLICATION_CREDENTIALS;
     delete process.env.METADATA_SERVER_DETECTION;
     nock.cleanAll();
-    nock.enableNetConnect(/(localhost|127\.0\.0\.1):\d+/);
+    nock.enableNetConnect(/^(localhost|127\.0\.0\.1):\d+$/);
   });
 
   it("sends OTLP protobuf to the Telemetry API with Google credentials", async () => {
